@@ -22,7 +22,7 @@ class Users (db.Model):
 
 # Ruta para el sign up de un usuario nuevo 
 @app.route('/sign_up', methods=['GET','POST'])
-def registro():
+def sign_up():
     if request.method=='POST':
         nombre=request.form['nombre']
         telefono=request.form['telefono']
@@ -31,17 +31,23 @@ def registro():
 
         print('Sign up con los datos...', nombre, telefono, contrasenha1, contrasenha2)
 
-        # Verificar que no exista ese usuario en la base de datos 
-        
+        # Verificar que no exista ya ese usuario en la base de datos 
+        try:
+            existe_el_usuario = db.session.execute(db.select(Users).filter_by(telefono=telefono)).one()
+        except: 
+            existe_el_usuario = None 
 
-        # Si las contrasenhas coinciden, mandar a la base de datos 
-        if contrasenha1 == contrasenha2: 
-            print ('Agregar a la base de datos uwu')
-            usuario = Users(nombre, telefono, contrasenha1, contrasenha2)
-            db.session.add(usuario)
-            db.session.commit()
-        else:
-            print ('Te equivocaste de contrasenha master ')
+        # Si no existe el usuario en la base de datos, lo registramos 
+        if existe_el_usuario == None: 
+            # Verificar si las contrasenhas coinciden
+            if contrasenha1 == contrasenha2: 
+                # Agregar a la base de datos. 
+                print ('Agregar a la base de datos uwu')
+                usuario = Users(nombre, telefono, contrasenha1, contrasenha2)
+                db.session.add(usuario)
+                db.session.commit()
+            else:
+                print ('Te equivocaste de contrasenha master ')
 
     return render_template('sign_up.html')
 
@@ -53,13 +59,29 @@ def login ():
         contrasenha=request.form['contrasenha']
 
         print ('Login con los datos... ', telefono, contrasenha)
+
+        # Verificamos de que exista el usuario en nuestra base de datos 
+        try:
+            usuario = Users.query.filter_by(telefono=telefono).first()
+        except:  
+            usuario = None 
+
+        # Si el usuario existe, debemos validar la contrasenha 
+        
+        print(usuario.__str__(), usuario)
+
     return render_template('login.html')
 
-
-
+# Definimos la ruta principal
+@app.route('/')
+def index ():
+    return render_template('index.html')
 
 
 
 if __name__ == '__main__':
     db.create_all()
-    app.run(debug=True)
+    app.run(debug=True, port=8080)
+
+
+   
