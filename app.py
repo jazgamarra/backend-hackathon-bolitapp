@@ -16,10 +16,15 @@ class Users (db.Model):
     def __init__(self, nombre, telefono, contrasenha):
         self.nombre=nombre
         self.telefono=telefono
-        self.contrasenha=contrasenha
+        self.contrasenha=contrasenha 
 
-    # def __str__(self) -> str:
-    #     return f'{self.nombre} {self.contrasenha1} {self.telefono}  '
+# Ruta de la pagina principal 
+@app.route('/pagina_principal')
+def pagina_principal():
+    args = request.args 
+    print(args)
+    nombre = args ['nombre']
+    return render_template('pagina_principal.html', )
 
 # Ruta para el sign up de un usuario nuevo 
 @app.route('/sign_up', methods=['GET','POST'])
@@ -47,6 +52,9 @@ def sign_up():
                 usuario = Users(nombre, telefono, contrasenha1)
                 db.session.add(usuario)
                 db.session.commit()
+                # Direccionarle a la pagina principal   
+                return redirect(url_for('pagina_principal', nombre=nombre))
+
             else:
                 print ('Te equivocaste de contrasenha master ')
 
@@ -77,18 +85,24 @@ def login ():
             # Verificar si la contrasenha ingresada es correcta 
             if contrasenha_correcta == contrasenha_ingresada: 
                 print('La contrasenha es correcta uwu')
+                return redirect(url_for('pagina_principal',  nombre=dict_usuario['nombre']))
+
             else: 
                 print ('Te equivocaste de contrasenha master ')
-            
-
     return render_template('login.html')    
+
+@app.route('/borrar/<int:id>')
+def borrar(id):
+    usuario_a_eliminar = Users.query.get(id)
+    db.session.delete(usuario_a_eliminar)
+    db.session.commit()
+    return redirect(url_for('pagina_principal',nombre=''))
+
 
 # Definimos la ruta principal
 @app.route('/')
 def index ():
     return render_template('index.html')
-
-
 
 if __name__ == '__main__':
     db.create_all()
