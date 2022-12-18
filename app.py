@@ -11,14 +11,15 @@ class Users (db.Model):
     id=db.Column(db.Integer, primary_key=True)
     telefono=db.Column(db.Integer, nullable=False)
     nombre=db.Column(db.String(100), nullable=False)
-    contrasenha1=db.Column(db.String(100), nullable=False)
-    contrasenha2=db.Column(db.String(100), nullable=False)
+    contrasenha=db.Column(db.String(100), nullable=False)
 
-    def __init__(self, nombre, telefono, contrasenha1, contrasenha2):
+    def __init__(self, nombre, telefono, contrasenha):
         self.nombre=nombre
         self.telefono=telefono
-        self.contrasenha1=contrasenha1
-        self.contrasenha2=contrasenha2
+        self.contrasenha=contrasenha
+
+    # def __str__(self) -> str:
+    #     return f'{self.nombre} {self.contrasenha1} {self.telefono}  '
 
 # Ruta para el sign up de un usuario nuevo 
 @app.route('/sign_up', methods=['GET','POST'])
@@ -43,7 +44,7 @@ def sign_up():
             if contrasenha1 == contrasenha2: 
                 # Agregar a la base de datos. 
                 print ('Agregar a la base de datos uwu')
-                usuario = Users(nombre, telefono, contrasenha1, contrasenha2)
+                usuario = Users(nombre, telefono, contrasenha1)
                 db.session.add(usuario)
                 db.session.commit()
             else:
@@ -68,7 +69,7 @@ def login ():
 
         # Si el usuario existe, debemos validar la contrasenha 
         
-        print(usuario.__str__(), usuario)
+        print(usuario.__dict__)
 
     return render_template('login.html')
 
