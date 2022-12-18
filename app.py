@@ -57,9 +57,9 @@ def sign_up():
 def login ():
     if request.method=='POST':
         telefono=request.form['telefono']
-        contrasenha=request.form['contrasenha']
+        contrasenha_ingresada=request.form['contrasenha']
 
-        print ('Login con los datos... ', telefono, contrasenha)
+        print ('Login con los datos... ', telefono, contrasenha_ingresada)
 
         # Verificamos de que exista el usuario en nuestra base de datos 
         try:
@@ -67,11 +67,21 @@ def login ():
         except:  
             usuario = None 
 
-        # Si el usuario existe, debemos validar la contrasenha 
-        
-        print(usuario.__dict__)
+        # Validamos que el usuario exista
+        # Si el usuario no existe, usuario es None 
+        if usuario != None: 
+            # Convertir lo que viene de la base de datos a un diccionario 
+            dict_usuario = usuario.__dict__
+            contrasenha_correcta = dict_usuario['contrasenha']
 
-    return render_template('login.html')
+            # Verificar si la contrasenha ingresada es correcta 
+            if contrasenha_correcta == contrasenha_ingresada: 
+                print('La contrasenha es correcta uwu')
+            else: 
+                print ('Te equivocaste de contrasenha master ')
+            
+
+    return render_template('login.html')    
 
 # Definimos la ruta principal
 @app.route('/')
