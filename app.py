@@ -6,6 +6,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
 app.config['SQLALCHEMY_TRACK_NOTIFICATIONS'] = False
 db=SQLAlchemy(app)
 
+# Datos globales a validar 
+categorias_validas_ingreso = ['salario', 'extras']
+categorias_validas_egreso = ['vivienda', 'deudas', 'servicios', 'supermercado', 'movilidad', 'entretenimiento']
+
 # Crear modelo de base de datos de usuario
 class Users (db.Model):
     id=db.Column(db.Integer, primary_key=True)
@@ -19,12 +23,34 @@ class Users (db.Model):
         self.contrasenha=contrasenha 
 
 # Ruta de la pagina principal 
-@app.route('/pagina_principal')
+@app.route('/pagina_principal', methods=['GET', 'POST'])
 def pagina_principal():
+    # Verificamos los argumentos recibidos de la pagina de sign_up o login
     args = request.args 
-    print(args)
-    nombre = args ['nombre']
-    return render_template('pagina_principal.html', )
+    try: 
+        datos = [ args['nombre'], args['telefono'] ]
+    except: 
+        print('No iniciaste sesion, master. ')
+        datos = [None, None]
+
+    # Validamos que los datos de ingreso y egreso se procesen solo si ya se inicio sesion
+    if ((datos[0] != None) and (datos[1] != None)):
+        if request.method=='POST':
+            opcion=request.form['opcion']
+            monto=request.form['monto']
+            categoria=request.form['categoria']
+
+
+        # Verificamos si 
+            # if opcion == 'ingreso': 
+
+
+            # elif opcion == 'egreso': 
+
+
+
+
+    return render_template('pagina_principal.html', nombre=datos[0], telefono=datos[1] )
 
 # Ruta para el sign up de un usuario nuevo 
 @app.route('/sign_up', methods=['GET','POST'])
@@ -52,8 +78,8 @@ def sign_up():
                 usuario = Users(nombre, telefono, contrasenha1)
                 db.session.add(usuario)
                 db.session.commit()
-                # Direccionarle a la pagina principal   
-                return redirect(url_for('pagina_principal', nombre=nombre))
+                # Direccionarle a la pagina principal mandando como parametro el nombre y telefono 
+                return redirect(url_for('pagina_principal', nombre=nombre, telefono=telefono))
 
             else:
                 print ('Te equivocaste de contrasenha master ')
@@ -85,7 +111,7 @@ def login ():
             # Verificar si la contrasenha ingresada es correcta 
             if contrasenha_correcta == contrasenha_ingresada: 
                 print('La contrasenha es correcta uwu')
-                return redirect(url_for('pagina_principal',  nombre=dict_usuario['nombre']))
+                return redirect(url_for('pagina_principal',  nombre=dict_usuario['nombre'], telefono=telefono))
 
             else: 
                 print ('Te equivocaste de contrasenha master ')
@@ -96,7 +122,7 @@ def borrar(id):
     usuario_a_eliminar = Users.query.get(id)
     db.session.delete(usuario_a_eliminar)
     db.session.commit()
-    return redirect(url_for('pagina_principal',nombre=''))
+    return redirect(url_for('pagina_principal',nombre='', telefono=''))
 
 
 # Definimos la ruta principal
