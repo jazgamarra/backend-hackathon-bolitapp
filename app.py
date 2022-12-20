@@ -15,7 +15,7 @@ class Users (db.Model):
     id=db.Column(db.Integer, primary_key=True)
     telefono=db.Column(db.Integer, nullable=False)
     nombre=db.Column(db.String(100), nullable=False)
-    contrasenha=db.Column(db.String(100), nullable=False)
+    contrasenha=db.Column(db.String(50), nullable=False)
     saldo=db.Column(db.Integer, nullable=False)
 
     def __init__(self, nombre, telefono, contrasenha, saldo ):
@@ -24,6 +24,20 @@ class Users (db.Model):
         self.contrasenha=contrasenha 
         self.saldo = saldo
 
+# Crear modelo de base de datos de transacciones 
+class Transactions (db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    transaccion=db.Column(db.String(20), nullable=False)
+    monto=db.Column(db.Integer, nullable=False)
+    categoria=db.Column(db.String(20), nullable=False)
+    telefono=db.Column(db.Integer, nullable=False)
+
+    def __init__(self, transaccion, monto, categoria, telefono):
+        self.transaccion = transaccion
+        self.monto = monto
+        self.categoria = categoria
+        self.telefono = telefono
+       
 # Ruta de la pagina principal 
 @app.route('/pagina_principal')
 def pagina_principal ():
@@ -35,41 +49,67 @@ def pagina_principal ():
         # Si intenta ingresar a la pagina principal sin iniciar sesion, le redireccionamos 
         print('No iniciaste sesion, master. ')
         return redirect(url_for('login'))
+    print('Los args de la pagina principal son', args)
     return render_template('pagina_principal.html', nombre=datos[0], telefono=datos[1])
+
+# Funcion para calcular el saldo de un usuario y actualizar la base de datos del usuario 
+def actualizar_saldo(telefono): 
+    # Se obtienen las transacciones de egreso y se suman
+    transacciones_egreso = db.session.query(Transactions).filter_by(telefono=telefono).filter_by(transaccion='egreso').all()
+    total = 0
+    for transaction in transacciones_egreso: 
+        total = total - transaction.monto
+
+    # Se obtienen las transacciones de ingreso y se suman 
+    transacciones_ingreso = db.session.query(Transactions).filter_by(telefono=telefono).filter_by(transaccion='ingreso').all()
+    for transaction in transacciones_ingreso: 
+        total = total + transaction.monto
+
+    db.session.query(Users).filter_by(telefono=telefono).update({"saldo": total})
+    db.session.commit()
+    print('El saldo actualizado es', total)
+    return total 
+
 
 # Ruta para la pagina de ingresar datos 
 @app.route('/ingresar_datos', methods=['GET', 'POST'])
 def ingresar_datos():
-    # Verificamos los argumentos recibidos de la pagina de sign_up o login
-    args = request.args 
-    try: 
-        datos = [ args['nombre'], args['telefono'] ]
-    except: 
-        # Si intenta ingresar a la pagina principal sin iniciar sesion, le redireccionamos 
-        print('No iniciaste sesion, master. ')
-        return redirect(url_for('login'))
+    if request.method=='POST':
+        # Verificamos los argumentos recibidos de la pagina de sign_up o login
+        args = request.args 
+        try: 
+            datos = [ args['nombre'], args['telefono'] ]
+        except: 
+            # Si intenta ingresar a la pagina principal sin iniciar sesion, le redireccionamos 
+            datos = [None, None]
+            print('No iniciaste sesion, master. ')
+            return redirect(url_for('login'))
 
-    # Validamos que los datos de ingreso y egreso se procesen solo si ya se inicio sesion
-    if ((datos[0] != None) and (datos[1] != None)):
-        if request.method=='POST':
+        # Validamos que los datos de ingreso y egreso se procesen solo si ya se inicio sesion
+        if ((datos[0] != None) and (datos[1] != None)):
             opcion=request.form['opcion']
             monto=request.form['monto']
             categoria=request.form['categoria']
             telefono=request.args['telefono']
             
-        # Realizamos las operaciones necesarias segun sea ingreso o egreso
-            if opcion == 'ingreso': 
-                # Validamos si es una categoria valida para las areas de ingreso 
-                if categoria in categorias_validas_ingreso: 
-                    print('Se registro el ingreso de', monto, categoria)
-                else: 
-                    print('No es una categoria valida de ingreso ')
+            print ('Se recibio la transaccion de',opcion, monto, categoria, telefono)
 
-            elif opcion == 'egreso': 
-                if categoria in categorias_validas_egreso: 
-                    print('Se registro el egreso de', monto, categoria)
-                else: 
-                    print('No es una categoria valida de egreso')
+            # Realizamos las operaciones necesarias segun sea ingreso o egreso
+            if (opcion == 'ingreso') and (categoria in categorias_validas_ingreso):
+                print('EL REQUEST METHOD ES', request.method)
+
+                transaccion = Transactions(opcion, monto, categoria, telefono)
+                db.session.add(transaccion)
+                db.session.commit()
+                actualizar_saldo(telefono)
+            elif (opcion == 'egreso') and (categoria in categorias_validas_egreso): 
+                transaccion = Transactions(opcion, monto, categoria, telefono)
+                db.session.add(transaccion)
+                db.session.commit()
+                actualizar_saldo(telefono) 
+            else: 
+                print('La transaccion no corresponde con la categoria. ')
+        
 
     return render_template('ingresar_datos.html')
 
@@ -153,10 +193,4 @@ def index ():
 
 if __name__ == '__main__':
     db.create_all()
-    app.run(debug=True, port=8080)
-
-
-   
-
-
-   
+    app.run(debug=True, port=8080) 
