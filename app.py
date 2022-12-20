@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 app=Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
-app.config['SQLALCHEMY_TRACK_NOTIFICATIONS'] = False
+app.config['SQLALCHEMY_TRACK_NOTIFICATIO    NS'] = False
 db=SQLAlchemy(app)
 
 # Datos globales a validar 
@@ -16,22 +16,38 @@ class Users (db.Model):
     telefono=db.Column(db.Integer, nullable=False)
     nombre=db.Column(db.String(100), nullable=False)
     contrasenha=db.Column(db.String(100), nullable=False)
+    saldo=db.Column(db.Integer, nullable=False)
 
-    def __init__(self, nombre, telefono, contrasenha):
+    def __init__(self, nombre, telefono, contrasenha, saldo ):
         self.nombre=nombre
         self.telefono=telefono
         self.contrasenha=contrasenha 
+        self.saldo = saldo
 
 # Ruta de la pagina principal 
-@app.route('/pagina_principal', methods=['GET', 'POST'])
-def pagina_principal():
+@app.route('/pagina_principal')
+def pagina_principal ():
+    # Verificamos si inicio sesion revisando los argumentos 
+    args = request.args 
+    try: 
+        datos = [ args['nombre'], args['telefono'] ]
+    except: 
+        # Si intenta ingresar a la pagina principal sin iniciar sesion, le redireccionamos 
+        print('No iniciaste sesion, master. ')
+        return redirect(url_for('login'))
+    return render_template('pagina_principal.html', nombre=datos[0], telefono=datos[1])
+
+# Ruta para la pagina de ingresar datos 
+@app.route('/ingresar_datos', methods=['GET', 'POST'])
+def ingresar_datos():
     # Verificamos los argumentos recibidos de la pagina de sign_up o login
     args = request.args 
     try: 
         datos = [ args['nombre'], args['telefono'] ]
     except: 
+        # Si intenta ingresar a la pagina principal sin iniciar sesion, le redireccionamos 
         print('No iniciaste sesion, master. ')
-        datos = [None, None]
+        return redirect(url_for('login'))
 
     # Validamos que los datos de ingreso y egreso se procesen solo si ya se inicio sesion
     if ((datos[0] != None) and (datos[1] != None)):
@@ -39,18 +55,23 @@ def pagina_principal():
             opcion=request.form['opcion']
             monto=request.form['monto']
             categoria=request.form['categoria']
+            telefono=request.args['telefono']
+            
+        # Realizamos las operaciones necesarias segun sea ingreso o egreso
+            if opcion == 'ingreso': 
+                # Validamos si es una categoria valida para las areas de ingreso 
+                if categoria in categorias_validas_ingreso: 
+                    print('Se registro el ingreso de', monto, categoria)
+                else: 
+                    print('No es una categoria valida de ingreso ')
 
+            elif opcion == 'egreso': 
+                if categoria in categorias_validas_egreso: 
+                    print('Se registro el egreso de', monto, categoria)
+                else: 
+                    print('No es una categoria valida de egreso')
 
-        # Verificamos si 
-            # if opcion == 'ingreso': 
-
-
-            # elif opcion == 'egreso': 
-
-
-
-
-    return render_template('pagina_principal.html', nombre=datos[0], telefono=datos[1] )
+    return render_template('ingresar_datos.html')
 
 # Ruta para el sign up de un usuario nuevo 
 @app.route('/sign_up', methods=['GET','POST'])
@@ -75,7 +96,7 @@ def sign_up():
             if contrasenha1 == contrasenha2: 
                 # Agregar a la base de datos. 
                 print ('Agregar a la base de datos uwu')
-                usuario = Users(nombre, telefono, contrasenha1)
+                usuario = Users(nombre, telefono, contrasenha1, 0)
                 db.session.add(usuario)
                 db.session.commit()
                 # Direccionarle a la pagina principal mandando como parametro el nombre y telefono 
@@ -133,6 +154,9 @@ def index ():
 if __name__ == '__main__':
     db.create_all()
     app.run(debug=True, port=8080)
+
+
+   
 
 
    
