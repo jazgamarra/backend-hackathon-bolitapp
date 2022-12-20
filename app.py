@@ -3,7 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 
 app=Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
-app.config['SQLALCHEMY_TRACK_NOTIFICATIO    NS'] = False
+app.config['SQLALCHEMY_TRACK_NOTIFICATIONS'] = False
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False 
 db=SQLAlchemy(app)
 
 # Datos globales a validar 
@@ -16,13 +17,11 @@ class Users (db.Model):
     telefono=db.Column(db.Integer, nullable=False)
     nombre=db.Column(db.String(100), nullable=False)
     contrasenha=db.Column(db.String(50), nullable=False)
-    saldo=db.Column(db.Integer, nullable=False)
 
     def __init__(self, nombre, telefono, contrasenha, saldo ):
         self.nombre=nombre
         self.telefono=telefono
         self.contrasenha=contrasenha 
-        self.saldo = saldo
 
 # Crear modelo de base de datos de transacciones 
 class Transactions (db.Model):
@@ -50,10 +49,14 @@ def pagina_principal ():
         print('No iniciaste sesion, master. ')
         return redirect(url_for('login'))
     print('Los args de la pagina principal son', args)
-    return render_template('pagina_principal.html', nombre=datos[0], telefono=datos[1])
+    
+    # Consultamos el saldo del usuario
+    saldo = consultar_saldo(datos[1])
+
+    return render_template('pagina_principal.html', nombre=datos[0], telefono=datos[1], saldo=saldo)
 
 # Funcion para calcular el saldo de un usuario y actualizar la base de datos del usuario 
-def actualizar_saldo(telefono): 
+def consultar_saldo(telefono): 
     # Se obtienen las transacciones de egreso y se suman
     transacciones_egreso = db.session.query(Transactions).filter_by(telefono=telefono).filter_by(transaccion='egreso').all()
     total = 0
@@ -64,10 +67,7 @@ def actualizar_saldo(telefono):
     transacciones_ingreso = db.session.query(Transactions).filter_by(telefono=telefono).filter_by(transaccion='ingreso').all()
     for transaction in transacciones_ingreso: 
         total = total + transaction.monto
-
-    db.session.query(Users).filter_by(telefono=telefono).update({"saldo": total})
-    db.session.commit()
-    print('El saldo actualizado es', total)
+    print('El saldo del usuario es', total)
     return total 
 
 
@@ -78,38 +78,35 @@ def ingresar_datos():
         # Verificamos los argumentos recibidos de la pagina de sign_up o login
         args = request.args 
         try: 
-            datos = [ args['nombre'], args['telefono'] ]
+            nombre = args['nombre']
+            telefono = args['telefono'] 
         except: 
             # Si intenta ingresar a la pagina principal sin iniciar sesion, le redireccionamos 
-            datos = [None, None]
             print('No iniciaste sesion, master. ')
             return redirect(url_for('login'))
 
         # Validamos que los datos de ingreso y egreso se procesen solo si ya se inicio sesion
-        if ((datos[0] != None) and (datos[1] != None)):
-            opcion=request.form['opcion']
-            monto=request.form['monto']
-            categoria=request.form['categoria']
-            telefono=request.args['telefono']
-            
-            print ('Se recibio la transaccion de',opcion, monto, categoria, telefono)
-
-            # Realizamos las operaciones necesarias segun sea ingreso o egreso
-            if (opcion == 'ingreso') and (categoria in categorias_validas_ingreso):
-                print('EL REQUEST METHOD ES', request.method)
-
-                transaccion = Transactions(opcion, monto, categoria, telefono)
-                db.session.add(transaccion)
-                db.session.commit()
-                actualizar_saldo(telefono)
-            elif (opcion == 'egreso') and (categoria in categorias_validas_egreso): 
-                transaccion = Transactions(opcion, monto, categoria, telefono)
-                db.session.add(transaccion)
-                db.session.commit()
-                actualizar_saldo(telefono) 
-            else: 
-                print('La transaccion no corresponde con la categoria. ')
+        opcion=request.form['opcion']
+        monto=request.form['monto']
+        categoria=request.form['categoria']
+        telefono=request.args['telefono']
         
+        print ('Se recibio la transaccion de',opcion, monto, categoria, telefono)
+
+        # Realizamos las operaciones necesarias segun sea ingreso o egreso
+        if (opcion == 'ingreso') and (categoria in categorias_validas_ingreso):
+            print('EL REQUEST METHOD ES', request.method)
+
+            transaccion = Transactions(opcion, monto, categoria, telefono)
+            db.session.add(transaccion)
+            db.session.commit()
+        elif (opcion == 'egreso') and (categoria in categorias_validas_egreso): 
+            transaccion = Transactions(opcion, monto, categoria, telefono)
+            db.session.add(transaccion)
+            db.session.commit()
+        else: 
+            print('La transaccion no corresponde con la categoria. ')
+    
 
     return render_template('ingresar_datos.html')
 
@@ -140,7 +137,8 @@ def sign_up():
                 db.session.add(usuario)
                 db.session.commit()
                 # Direccionarle a la pagina principal mandando como parametro el nombre y telefono 
-                return redirect(url_for('pagina_principal', nombre=nombre, telefono=telefono))
+                
+                return redirect(url_for('pagina_principal', nombre=nombre, telefono=telefono, saldo=consultar_saldo(telefono)))
 
             else:
                 print ('Te equivocaste de contrasenha master ')
@@ -172,7 +170,7 @@ def login ():
             # Verificar si la contrasenha ingresada es correcta 
             if contrasenha_correcta == contrasenha_ingresada: 
                 print('La contrasenha es correcta uwu')
-                return redirect(url_for('pagina_principal',  nombre=dict_usuario['nombre'], telefono=telefono))
+                return redirect(url_for('pagina_principal',  nombre=dict_usuario['nombre'], telefono=telefono, saldo=consultar_saldo(telefono)))
 
             else: 
                 print ('Te equivocaste de contrasenha master ')
@@ -183,7 +181,7 @@ def borrar(id):
     usuario_a_eliminar = Users.query.get(id)
     db.session.delete(usuario_a_eliminar)
     db.session.commit()
-    return redirect(url_for('pagina_principal',nombre='', telefono=''))
+    return redirect(url_for('pagina_principal',nombre='', telefono='', saldo=0))
 
 
 # Definimos la ruta principal
